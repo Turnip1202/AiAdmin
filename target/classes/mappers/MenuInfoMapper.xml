@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.turnip.aiadmin.mapper.MenuInfoMapper">
+
+    <select id="getMenuListData" resultType="com.turnip.aiadmin.model.entity.expand.MenuInfoEntityExpand">
+        select m.id,m.name,m.type,m.url,m.icon,m.sort,m.createAt,m.updateAt,m.permission,mr.parent_id
+        from menu_info m left join menu_relationship mr on m.id=mr.child_id
+--         where mr.parent_id is not null
+    </select>
+    <select id="getMenuListJSON" resultType="com.turnip.aiadmin.model.vo.role.RoleMenuList">
+        -- 选择菜单信息和子菜单信息，格式化日期时间字段
+        SELECT
+            mi1.id,
+            mi1.name,
+            mi1.type,
+            mi1.url,
+            mi1.icon,
+            mi1.sort,
+            DATE_FORMAT(mi1.createAt, '%Y-%m-%d %H:%i:%s') AS createAt,
+            DATE_FORMAT(mi1.updateAt, '%Y-%m-%d %H:%i:%s') AS updateAt,
+            -- 通过子查询获取子菜单信息并将其转换为JSON数组格式，包含parentId、createAt和updateAt，格式化日期时间字段
+            (
+                SELECT JSON_ARRAYAGG(
+                               JSON_OBJECT(
+                                       'id', mi2.id,
+                                       'name', mi2.name,
+                                       'type', mi2.type,
+                                       'url', mi2.url,
+                                       'sort', mi2.sort,
+                                       'parentId', mr2.parent_id,
+                                       'createAt', DATE_FORMAT(mi2.createAt, '%Y-%m-%d %H:%i:%s'),
+                                       'updateAt', DATE_FORMAT(mi2.updateAt, '%Y-%m-%d %H:%i:%s'),
+                                       'children', (
+                                           SELECT JSON_ARRAYAGG(
+                                                          JSON_OBJECT(
+                                                                  'id', mi3.id,
+                                                                  'name', mi3.name,
+                                                                  'type', mi3.type,
+                                                                  'url', mi3.url,
+                                                                  'sort', mi3.sort,
+                                                                  'parentId', mr3.parent_id,
+                                                                  'createAt', DATE_FORMAT(mi3.createAt, '%Y-%m-%d %H:%i:%s'),
+                                                                  'updateAt', DATE_FORMAT(mi3.updateAt, '%Y-%m-%d %H:%i:%s')
+                                                          )
+                                                  )
+                                           FROM menu_info mi3
+                                                    JOIN menu_relationship mr3 ON mi3.id = mr3.child_id
+                                           WHERE mr3.parent_id = mi2.id
+                                       )
+                               )
+                       )
+                FROM menu_info mi2
+                         JOIN menu_relationship mr2 ON mi2.id = mr2.child_id
+                WHERE mr2.parent_id = mi1.id
+            ) AS children
+        FROM menu_info mi1
+        WHERE mi1.id IN (
+            -- 获取顶级菜单的ID
+            SELECT DISTINCT parent_id FROM menu_relationship WHERE parent_id NOT IN (
+                SELECT child_id FROM menu_relationship
+            )
+        )
+        ORDER BY mi1.sort;
+
+    </select>
+</mapper>

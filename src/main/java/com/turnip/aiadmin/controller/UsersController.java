@@ -1,0 +1,13 @@
+package com.turnip.aiadmin.controller;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/users")
+public class UsersController {
+    @RequestMapping("/list")
+    public String list() {
+        return "hello world";
+    }
+}
